@@ -1,0 +1,42 @@
+version: '3'
+networks:
+  bridge:
+    driver: bridge
+services:
+  ejbca-database:
+    container_name: ejbca-database
+    image: "library/mariadb:latest"
+    networks:
+      - bridge
+    env_file:
+      - ./env/database.env
+    volumes:
+      - ./datadbdir:/var/lib/mysql:rw
+
+  ejbca-node:
+    hostname: ejbca
+    container_name: ejbca
+    image: keyfactor/ejbca-ce:latest
+    depends_on:
+      - ejbca-database
+    networks:
+      - bridge
+    env_file:
+      - ./env/ejbca.env
+    volumes:
+      - ./ejbca/certs/ejbca.ks:/opt/keyfactor/secrets/external/tls/ks/:ro
+      - ./ejbca/certs/truststore.jks:/opt/keyfactor/secrets/external/tls/ts/:ro
+
+  nginx:
+    container_name: nginx
+    image: nginx:latest
+    depends_on:
+      - ejbca-node
+    networks:
+      - bridge
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/conf/frontend.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/certs:/etc/nginx/ssl:ro
